@@ -1,0 +1,100 @@
+import streamlit as st
+import random
+
+# --- GÖREV LİSTESİ VE AYARLAR ---
+KISILER = ["Sana", "Karşındakine", "İkiniz de"]
+
+# NOT: Buraya orijinal 100+ GÖREVLER listenizi kopyalayıp yapıştırın!
+# Orijinal listenizdeki tüm görevleri buraya (liste içine) eklemeyi unutmayın.
+GOREVLER = [
+    ("30 saniye boyunca karşındakine bir 'superstar' gibi imza dağıt.", 1),
+    ("Karşındakine içten bir iltifat et (aynı iltifat daha önce yapılmamış olmalı).", 2),
+    ("Eğer bir film çekseydiniz, başlık, ana karakter ve konusu ne olurdu?", 3),
+    ("Rastgele bir dilde (uydurma olabilir) 10 saniyelik bir konuşma yap.", 1),
+    ("Hayatında yaptığın ve şu an gülerek hatırladığın bir hatayı anlat.", 3),
+] * 20 # 100+ görev simülasyonu
+random.shuffle(GOREVLER)
+
+# --- OYUN MANTIĞI VE WEB ARAYÜZÜ ---
+
+# Streamlit'in değişkenleri hatırlaması için gerekli ayarlar
+if 'puanlar' not in st.session_state:
+    st.session_state.puanlar = {"Oyuncu 1": 0, "Oyuncu 2": 0}
+if 'sira' not in st.session_state:
+    st.session_state.sira = 1
+if 'gorev_aktif' not in st.session_state:
+    st.session_state.gorev_aktif = False
+if 'kullanilmis_gorevler' not in st.session_state:
+    st.session_state.kullanilmis_gorevler = set()
+if 'son_gorev' not in st.session_state:
+    st.session_state.son_gorev = (None, 0)
+
+def gorev_sonucu(basarili):
+    """Puanı ekler ve sırayı değiştirir."""
+    puan_ekle = st.session_state.son_gorev[1] if basarili else 0
+    oyuncu_key = f"Oyuncu {st.session_state.sira}"
+    st.session_state.puanlar[oyuncu_key] += puan_ekle
+    
+    st.session_state.sira = 3 - st.session_state.sira
+    st.session_state.gorev_aktif = False
+    st.rerun() # Sayfayı günceller
+
+def zar_at():
+    """Zar atar ve yeni görevi seçer."""
+    if st.session_state.gorev_aktif:
+        st.warning("Lütfen önce mevcut görevi tamamlayın!")
+        return
+
+    st.session_state.gorev_aktif = True
+    
+    secilen_gorev_tuple = None
+    for gorev_tuple in GOREVLER:
+        if gorev_tuple not in st.session_state.kullanilmis_gorevler:
+            secilen_gorev_tuple = gorev_tuple
+            break
+            
+    if secilen_gorev_tuple is None:
+        st.balloons()
+        st.success("🎉 Tüm görevler tamamlandı! Oyun bitti!")
+        return
+
+    st.session_state.kullanilmis_gorevler.add(secilen_gorev_tuple)
+    
+    secilen_kisi = random.choice(KISILER)
+    gorev_metni, gorev_puani = secilen_gorev_tuple
+    st.session_state.son_gorev = (gorev_metni, gorev_puani)
+
+    # GÖREVİ GÖSTER
+    st.markdown("---")
+    st.subheader(f"ZAR ATILDI! ({gorev_puani} Puan)")
+    
+    if st.session_state.sira == 1:
+        st.markdown(f"<p style='color:red; font-size: 20px;'>KİŞİ: **{secilen_kisi}**</p>", unsafe_allow_html=True)
+    else:
+        st.markdown(f"<p style='color:green; font-size: 20px;'>KİŞİ: **{secilen_kisi}**</p>", unsafe_allow_html=True)
+        
+    st.markdown(f"## 🎯 {gorev_metni}")
+    st.markdown("---")
+
+
+# --- ARAYÜZ ---
+st.title("🌟 Mobil Görev Zarı")
+col1, col2 = st.columns(2)
+col1.markdown(f"<h3 style='color:red;'>P1: {st.session_state.puanlar['Oyuncu 1']} Puan</h3>", unsafe_allow_html=True)
+col2.markdown(f"<h3 style='color:green;'>P2: {st.session_state.puanlar['Oyuncu 2']} Puan</h3>", unsafe_allow_html=True)
+
+sira_rengi = "red" if st.session_state.sira == 1 else "green"
+st.markdown(f"<h2 style='color:{sira_rengi};'>➡️ SIRA: OYUNCU {st.session_state.sira}</h2>", unsafe_allow_html=True)
+
+st.markdown("---")
+
+if not st.session_state.gorev_aktif:
+    st.button(f"🎲 OYUNCU {st.session_state.sira} ZAR AT", on_click=zar_at, use_container_width=True)
+else:
+    zar_at() 
+
+    col_basarili, col_basarisiz = st.columns(2)
+    with col_basarili:
+        st.button("✅ GÖREV BAŞARILI (+Puan)", on_click=lambda: gorev_sonucu(True), use_container_width=True, type="primary")
+    with col_basarisiz:
+        st.button("❌ GÖREV BAŞARISIZ (0 Puan)", on_click=lambda: gorev_sonucu(False), use_container_width=True)
